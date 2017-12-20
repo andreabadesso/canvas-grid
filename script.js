@@ -1,8 +1,7 @@
 let grid, currentBox
-let elements = [
-    [0, 1, 4, 5],
-    [2, 3, 6]
-]
+let editing = false
+let editGrid = []
+let elements = []
 let canvas = document.querySelector('canvas')
 let wrapper = document.querySelector('.wrapper')
 let context = canvas.getContext('2d')
@@ -35,7 +34,22 @@ canvas.addEventListener('mousedown', (event) => {
     }
 }, false)
 
+function setEditMode() {
+    editing = true
+    drawGrid()
+}
+
+function getNewButton() {
+    console.log(currentBox)
+}
+
 function handleEmptyBox(empty) {
+    if (editing) {
+        if (editGrid.length > 0 && editGrid.indexOf(empty) < 0) {
+            return false
+        }
+    }
+
     if (!currentBox) {
         currentBox = [empty]
         elements.push(currentBox)
@@ -43,7 +57,8 @@ function handleEmptyBox(empty) {
         currentBox.push(empty)
     }
 
-    console.log(elements)
+    editGrid = getNeighbors(empty)
+    console.log(editGrid)
 
     drawGrid()
 }
@@ -51,11 +66,19 @@ function handleEmptyBox(empty) {
 function handleExistingBox(existing) {
     if (currentBox) {
         let idx = currentBox.indexOf(existing)
+
         if (idx > -1) {
             currentBox.splice(idx, 1)
-            drawGrid()
         }
     }
+
+    if (currentBox.length > 0) {
+        editGrid = getNeighbors(currentBox[currentBox.length-1])
+    } else {
+        editGrid = []
+    }
+
+    drawGrid()
 }
 
 function getClickedObj(stack, event) {
@@ -85,6 +108,38 @@ function getClickedObj(stack, event) {
     })
 }
 
+function getNeighbors(item) {
+    let x = item % 4
+    let y = Math.floor(item / 4)
+
+    let top = ((4 * y) + x) - 4
+    let bottom = ((4 * y) + x) + 4
+    let left = (4 * y) + (x - 1)
+    let right = (4 * y) + (x + 1)
+
+    let all = _.flatten(elements)
+
+    // Checking for boundaries
+    if (getCoords(item)[1] !== getCoords(left)[1]) left = false
+    if (getCoords(item)[1] !== getCoords(right)[1]) right = false
+    if (getCoords(item)[0] !== getCoords(top)[0]) top = false
+
+    // Check for existing blocks
+    if (all.indexOf(top) > -1) top = false
+    if (all.indexOf(bottom) > -1) bottom = false
+    if (all.indexOf(right) > -1) right = false
+    if (all.indexOf(left) > -1) left = false
+    
+    let neighbors = []
+
+    if (top) neighbors.push(top)
+    if (bottom) neighbors.push(bottom)
+    if (left) neighbors.push(left)
+    if (right) neighbors.push(right)
+
+    return neighbors
+}
+
 function getCoords(point) {
     let x = point % 4
     let y = Math.floor(point / 4)
@@ -108,12 +163,28 @@ function drawGrid() {
 
     context.strokeStyle = '#FF0000'
     
-    remaining.forEach((item) => {
-        let x = item % 4 * itemSize
-        let y = Math.floor(item / 4) * itemSize
+    function drawRemaining() {
+        remaining.forEach((item) => {
+            let x = item % 4 * itemSize
+            let y = Math.floor(item / 4) * itemSize
 
-        context.strokeRect(x + 8, y + 8, itemSize - 16, itemSize - 16)
-    })
+            context.strokeRect(x + 8, y + 8, itemSize - 16, itemSize - 16)
+        })
+    }
+
+    if (editing) {
+        if (editGrid.length > 0) {
+            editGrid.forEach((item) => {
+                let coords = getCoords(item)
+                let x = coords[0] * itemSize
+                let y = coords[1] * itemSize
+                console.log(x, y)
+                context.strokeRect(x + 8, y + 8, itemSize - 16, itemSize - 16)
+            })
+        } else {
+            drawRemaining()
+        }
+    }
 
     elements.forEach((button) => {
         button.forEach((item) => {
